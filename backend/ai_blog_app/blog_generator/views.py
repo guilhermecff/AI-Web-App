@@ -4,9 +4,11 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-import json
-from pytube import YouTube
 from django.conf import settings
+import json 
+import os
+from pytube import YouTube
+from yt_dlp import YoutubeDL
 import assemblyai as aai
 import openai
 
@@ -35,6 +37,7 @@ def generate_blog(request):
         
         # Get the title
         title = yt_title(yt_link)
+        print(title)
         
         # Get the transcript
         transcription = get_transcription(yt_link)
@@ -60,15 +63,28 @@ def yt_title(link):
     return title
 
 def download_audio(link):
-    yt = YouTube(link)
-    video = yt.streams.filter(only_audio=True).first()
-    
-    out_file = video.download(output_path=settings.MEDIA_ROOT)
-    
-    base, ext = os.path.splitext(out_file)
-    new_file = base + '.mp3'
-    os.rename(out_file, new_file)
-    return new_file
+    try:
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': os.path.join(settings.MEDIA_ROOT, '%(title)s.%(ext)s'),
+        }
+
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(link, download=True)
+            # Get the downloaded file name
+            downloaded_file = ydl.prepare_filename(info_dict)
+            
+            # Change the extension to .mp4
+            base, ext = os.path.splitext(downloaded_file)
+            mp4_file = f"{base}.mp4"
+            os.rename(downloaded_file, mp4_file)
+            
+            print(f"Audio file downloaded and saved as: {mp4_file}")
+            return mp4_file
+    except Exception as e:
+        print(f"Error downloading audio: {e}")
+        return None
+
 
 
 def get_transcription(link):
@@ -76,22 +92,26 @@ def get_transcription(link):
     aai.settings.api_key = API_KEY
     
     transcriber = aai.Transcriber()
-    
-    transcriber = transcriber.transcribe(audio_file)
-    
-    return transcriber.text
+
+    transcript = transcriber.transcribe(audio_file)
+    return transcript.text
     
     
 def generate_blog_from_transcript(transcript):
     openai.api_key = API_KEY_OPENAI
-    prompt = f"Based on the following transcript from a YouTube video, write a comprehensive blog article, write it based on the transcript, but dont make it look like a youtube video, make it look like a proper blog article:\n\n{transcript}\n\nArticle:"
-    response = openai.Completion.create(model="text-davinci-003", 
-                                        prompt=prompt, 
-                                        max_tokens= 1000)
-    
-    generated_content = response.choices[0].text.strip()
-    
-    return generated_content
+    prompt = f"Based on the following transcript from a YouTube video, write a comprehensive blog article. Write it based on the transcript, but don't make it look like a YouTube video; make it look like a proper blog article:\n\n{transcript}\n\nArticle:"
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=1000
+    )
+
+    blog_content = response['choices'][0]['message']['content']
+    return blog_content
     
 
 def user_login(request):
