@@ -11,6 +11,7 @@ from pytube import YouTube
 from yt_dlp import YoutubeDL
 import assemblyai as aai
 import openai
+from .models import BlogPost
 
 import os
 from dotenv import load_dotenv
@@ -50,8 +51,11 @@ def generate_blog(request):
             return JsonResponse({'error':'Blog generation failed'}, status=500)
         
         # Save blog to database
+        new_blog_article = BlogPost.objects.create(user=request.user, youtube_title=title, youtube_link=yt_link, generated_content=blog_content)
+        new_blog_article.save()
         
         # return blog as response
+        
         
         return JsonResponse({'content':blog_content})
     else:
@@ -71,10 +75,8 @@ def download_audio(link):
 
         with YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(link, download=True)
-            # Get the downloaded file name
             downloaded_file = ydl.prepare_filename(info_dict)
             
-            # Change the extension to .mp4
             base, ext = os.path.splitext(downloaded_file)
             mp4_file = f"{base}.mp4"
             os.rename(downloaded_file, mp4_file)
@@ -84,7 +86,6 @@ def download_audio(link):
     except Exception as e:
         print(f"Error downloading audio: {e}")
         return None
-
 
 
 def get_transcription(link):
@@ -156,3 +157,15 @@ def user_signup(request):
 def user_logout(request):
     logout(request)
     return redirect('/')
+
+def blog_list(request):
+    blog_articles = BlogPost.objects.filter(user=request.user)
+    return render(request, 'all-blog.html', {'blog_articles': blog_articles})
+
+def blog_details(request, pk):
+    blog_article_details = BlogPost.objects.get(id=pk)
+    if request.user == blog_article_details.user:
+        return render(request, 'blog-details.html', {'blog_article_details': blog_article_details})
+    else:
+        return redirect('/')
+    
