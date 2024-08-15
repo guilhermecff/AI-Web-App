@@ -2,13 +2,97 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from pytube import YouTube
+from django.conf import settings
+import assemblyai as aai
+import openai
+
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+API_KEY = os.getenv('API_TOKEN')
+API_KEY_OPENAI = os.getenv('API_KEY')
 
 # Create your views here.
 @login_required
 def index(request):
     return render(request, 'index.html')
 
+@csrf_exempt
+def generate_blog(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            yt_link = data['link']
+        except (KeyError, json.JSONDecodeError):
+            return JsonResponse({'error':'Invalid data sent'}, status=400)
+        
+        # Get the title
+        title = yt_title(yt_link)
+        
+        # Get the transcript
+        transcription = get_transcription(yt_link)
+        if not transcription:
+            return JsonResponse({'error':'Transcription failed'}, status=500)
+        
+        # Get OpenAI to comment
+        blog_content = generate_blog_from_transcript(transcription)
+        if not blog_content:
+            return JsonResponse({'error':'Blog generation failed'}, status=500)
+        
+        # Save blog to database
+        
+        # return blog as response
+        
+        return JsonResponse({'content':blog_content})
+    else:
+        return JsonResponse({'error':'Invalid request method'}, status=405)
+    
+def yt_title(link):
+    yt = YouTube(link)
+    title = yt.title
+    return title
 
+def download_audio(link):
+    yt = YouTube(link)
+    video = yt.streams.filter(only_audio=True).first()
+    
+    out_file = video.download(output_path=settings.MEDIA_ROOT)
+    
+    base, ext = os.path.splitext(out_file)
+    new_file = base + '.mp3'
+    os.rename(out_file, new_file)
+    return new_file
+
+
+def get_transcription(link):
+    audio_file = download_audio(link)
+    aai.settings.api_key = API_KEY
+    
+    transcriber = aai.Transcriber()
+    
+    transcriber = transcriber.transcribe(audio_file)
+    
+    return transcriber.text
+    
+    
+def generate_blog_from_transcript(transcript):
+    openai.api_key = API_KEY_OPENAI
+    prompt = f"Based on the following transcript from a YouTube video, write a comprehensive blog article, write it based on the transcript, but dont make it look like a youtube video, make it look like a proper blog article:\n\n{transcript}\n\nArticle:"
+    response = openai.Completion.create(model="text-davinci-003", 
+                                        prompt=prompt, 
+                                        max_tokens= 1000)
+    
+    generated_content = response.choices[0].text.strip()
+    
+    return generated_content
+    
 
 def user_login(request):
     if request.method == 'POST':
