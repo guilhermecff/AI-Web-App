@@ -1,7 +1,6 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,42 +8,37 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 
-<body class="bg-gray-100 font-sans antialiased">
-    
+<body class="bg-gradient-to-r from-green-400 to-blue-500 font-sans antialiased">
     <!-- Navbar -->
-    <nav class="bg-blue-600 p-4 text-white flex justify-between">
+    <nav class="bg-white shadow-md p-4 text-gray-800 flex justify-between items-center">
         <div>
             <h1 class="text-3xl font-bold">AI Blog Generator</h1>
         </div>
         <div>
-            <a href ='/' class="text-white hover:underline mx-4">Welcome {{ user.username }}</a>
-            <a href ='/blog-list' class="text-white hover:underline mx-4"> Saved Blog posts</a>
-            <a href="logout" class="text-white hover:underline">Logout</a>
+            <a href='/' class="text-blue-600 hover:underline mx-4">Welcome {{ user.username }}</a>
+            <a href='/blog-list' class="text-blue-600 hover:underline mx-4">Saved Blog posts</a>
+            <a href="logout" class="text-blue-600 hover:underline">Logout</a>
         </div>
     </nav>
 
     <!-- Main Content Container -->
     <div class="container mx-auto mt-10 px-4 sm:px-0">
-        <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-md">
+        <div class="max-w-3xl mx-auto bg-white p-6 rounded-lg shadow-lg">
 
             <!-- Blog posts section -->
             <section>
-                <h2 class="text-xl mb-4 font-semibold">All Blog Posts</h2>
-                <div class = 'space-y-4'>
+                <h2 class="text-2xl mb-6 font-semibold text-gray-800">All Blog Posts</h2>
+                <div class='space-y-6'>
 
-                    {% for article in blog_articles reversed  %}
-                    <a href= 'blog-details/{{article.id}} '>
-                        <div class=" border border-gray-300 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold">{{article.youtube_title}}</h3>
-                            <p>{{article.generated_content|truncatechars:80}}</p>
+                    {% for article in blog_articles reversed %}
+                    <a href='blog-details/{{article.id}}'>
+                        <div class="border border-gray-300 p-5 rounded-lg hover:shadow-md transition-shadow">
+                            <h3 class="text-lg font-semibold text-blue-600">{{article.youtube_title}}</h3>
+                            <p class="text-gray-700 mt-2">{{article.generated_content|truncatechars:80}}</p>
                         </div>
                     </a>
-                    <br>
                     {% endfor %}
 
-                </div>
-
-                    <!-- Repeat -->
                 </div>
             </section>
 
@@ -52,4 +46,5 @@
     </div>
 
 </body>
+
 </html>
